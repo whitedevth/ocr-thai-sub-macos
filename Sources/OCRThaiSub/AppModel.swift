@@ -38,6 +38,10 @@ struct Settings: Codable, Equatable {
     var eraseOriginal = true
     /// Thai size relative to the original text's size (1 = same size).
     var thaiSizeScale = 1.0
+    /// Capture resolution and frame rate; 0 = let the device/session choose.
+    var captureWidth = 0
+    var captureHeight = 0
+    var captureFPS = 0.0
 
     var roi: CGRect {
         let l = min(roiLeft, roiRight), r = max(roiLeft, roiRight)
@@ -67,6 +71,8 @@ struct Settings: Codable, Equatable {
         quickApple = v(.quickApple, d.quickApple); refine = v(.refine, d.refine)
         eraseOriginal = v(.eraseOriginal, d.eraseOriginal)
         thaiSizeScale = v(.thaiSizeScale, d.thaiSizeScale)
+        captureWidth = v(.captureWidth, d.captureWidth); captureHeight = v(.captureHeight, d.captureHeight)
+        captureFPS = v(.captureFPS, d.captureFPS)
     }
 
     static func load() -> Settings {
@@ -245,7 +251,8 @@ final class AppModel: ObservableObject {
         }
         let audio = settings.playAudio ? capture.matchingAudioDevice(for: device)?.uniqueID : nil
         capture.errorMessage = nil
-        Task { await capture.start(videoDeviceID: device.uniqueID, audioDeviceID: audio, volume: Float(settings.volume)) }
+        let format = CaptureService.FormatChoice(width: settings.captureWidth, height: settings.captureHeight, fps: settings.captureFPS)
+        Task { await capture.start(videoDeviceID: device.uniqueID, audioDeviceID: audio, volume: Float(settings.volume), format: format) }
         defer { warmUpTranslator() }
         status = audio == nil && settings.playAudio ? "เริ่มแล้ว (ไม่พบอุปกรณ์เสียงที่ชื่อตรงกับ capture card)" : "เริ่มแล้ว"
     }
@@ -275,6 +282,8 @@ final class AppModel: ObservableObject {
         if settings.ocrPerSecond != old.ocrPerSecond { capture.frameInterval = 1 / max(settings.ocrPerSecond, 0.5) }
         if settings.volume != old.volume { capture.setVolume(Float(settings.volume)) }
         let restartNeeded = settings.videoDeviceID != old.videoDeviceID || settings.playAudio != old.playAudio
+            || settings.captureWidth != old.captureWidth || settings.captureHeight != old.captureHeight
+            || settings.captureFPS != old.captureFPS
         if restartNeeded, capture.isRunning { start() }
     }
 

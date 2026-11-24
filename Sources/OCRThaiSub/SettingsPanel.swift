@@ -89,6 +89,17 @@ struct SettingsPanel: View {
                 Toggle("แสดงภาษาอังกฤษใต้คำแปล", isOn: $model.settings.showOriginal)
             }
 
+            Section("ภาพจาก capture card") {
+                captureFormatPickers
+                if let active = capture.deliveredText {
+                    LabeledContent("ที่ได้จริง") { Text(active).monospacedDigit() }
+                        .font(.callout)
+                }
+                Text("ความละเอียดต่ำลงทำให้ OCR เร็วขึ้น แต่ตัวหนังสือเล็กอาจอ่านพลาด ค่าใหม่มีผลทันทีถ้ากำลังเล่นอยู่")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("เสียงจาก capture card") {
                 Toggle("เล่นเสียงออกลำโพง Mac", isOn: $model.settings.playAudio)
                 LabeledContent("ระดับเสียง") {
@@ -135,6 +146,56 @@ struct SettingsPanel: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    /// Resolution and fps lists come from what the selected device reports. A saved value this
+    /// device doesn't offer stays listed (marked), so it is visible and can be changed back to Auto.
+    @ViewBuilder
+    private var captureFormatPickers: some View {
+        let device = model.selectedVideoDevice
+        let sizes = device.map(capture.resolutions) ?? []
+        let key = { (w: Int, h: Int) in w > 0 ? "\(w)x\(h)" : "" }
+        let label = { (k: String) in k.replacingOccurrences(of: "x", with: "×") }
+        let current = key(model.settings.captureWidth, model.settings.captureHeight)
+        let sizeKeys = sizes.map { key(Int($0.width), Int($0.height)) }
+        let sizeAvailable = sizeKeys.contains(current)
+        Picker("ความละเอียด", selection: Binding(
+            get: { current },
+            set: { value in
+                let parts = value.split(separator: "x").compactMap { Int($0) }
+                model.settings.captureWidth = parts.count == 2 ? parts[0] : 0
+                model.settings.captureHeight = parts.count == 2 ? parts[1] : 0
+            }
+        )) {
+            Text("อัตโนมัติ").tag("")
+            ForEach(sizeKeys, id: \.self) { k in
+                Text(label(k)).tag(k)
+            }
+            if !current.isEmpty, !sizeAvailable {
+                Text("\(label(current)) (อุปกรณ์นี้ไม่มี ใช้อัตโนมัติแทน)").tag(current)
+            }
+        }
+        .disabled(device == nil)
+
+        let rates = device.map {
+            capture.frameRates(of: $0, width: sizeAvailable ? model.settings.captureWidth : 0,
+                               height: sizeAvailable ? model.settings.captureHeight : 0)
+        } ?? []
+        let fps = model.settings.captureFPS
+        let fpsAvailable = rates.contains { abs($0 - fps) < 0.01 }
+        Picker("เฟรมเรต", selection: Binding(
+            get: { fps },
+            set: { model.settings.captureFPS = $0 }
+        )) {
+            Text("อัตโนมัติ").tag(0.0)
+            ForEach(rates, id: \.self) { r in
+                Text(String(format: "%.4g fps", r)).tag(r)
+            }
+            if fps > 0, !fpsAvailable {
+                Text(String(format: "%.4g fps (ไม่รองรับ ใช้อัตโนมัติแทน)", fps)).tag(fps)
+            }
+        }
+        .disabled(device == nil)
     }
 
     private func slider(_ label: String, _ value: Binding<Double>) -> some View {
