@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "name": "Debug OCRThaiSub",
+            "target": "OCRThaiSub",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug OCRThaiSub"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "name": "Release OCRThaiSub",
+            "target": "OCRThaiSub",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release OCRThaiSub"
+        }
+    ]
+}
